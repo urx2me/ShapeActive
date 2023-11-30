@@ -1,0 +1,15 @@
+Public Class frmMain
+    ' Assume you have a variable to store the user ID, replace this with your actual logic
+    Dim loggedInUserId As Integer = 1 ' Change this based on your scenario
+
+    Private Sub ProfileToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ProfileToolStripMenuItem.Click
+        Me.Hide()
+        ' Pass the user ID to the constructor of frmProfile
+        Dim profileForm As New ShapeActive.frmProfile
+        profileForm.Show()
+    End Sub
+
+    Private Sub frmMain_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+
+    End Sub
+End Class

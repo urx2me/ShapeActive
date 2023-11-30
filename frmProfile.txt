@@ -1,0 +1,211 @@
+Imports MySql.Data.MySqlClient
+
+Public Class frmProfile
+    ' Connection string
+    Dim connectionString As String = "Server=localhost;Database=shapeactive;Uid=root;Pwd=nics1108;"
+
+    ' Use a property to store and retrieve the user ID
+    Public Useremail As String = frmLogin.Useremail
+
+    ' Constructor that accepts userId as a parameter
+
+    ' Retrieve and display data when the form loads
+    Private Sub frmProfile_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        ' Load user data on form load
+        RefreshData()
+    End Sub
+
+    ' Enable editing of text boxes
+    Private Sub EnableEditing()
+        txtName.ReadOnly = False
+        txtEmail.ReadOnly = False
+        txtPassword.ReadOnly = False
+        txtAge.ReadOnly = False
+        txtHeight.ReadOnly = False
+        txtWeight.ReadOnly = False
+    End Sub
+
+    ' Save changes back to the database
+    Private Sub btnSaveChanges_Click(sender As Object, e As EventArgs) Handles btnSaveChanges.Click
+        ' Update the database with the edited values
+        ' Implement the logic to update the record in the database
+
+        ' Placeholder for the update logic
+        UpdateDatabase()
+
+        ' After saving changes, you may want to disable editing again
+        DisableEditing()
+
+        ' Refresh the data after saving changes
+        RefreshData()
+    End Sub
+
+    ' Refresh data from the database
+    Private Sub RefreshData()
+        ' Fetch data from MySQL using the stored userId
+        Dim query As String = "SELECT * FROM tblUsers WHERE demail = @duseremail"
+        Using connection As New MySqlConnection(connectionString)
+            Using command As New MySqlCommand(query, connection)
+                command.Parameters.AddWithValue("@duseremail", Useremail)
+
+                Try
+                    connection.Open()
+                    Using reader As MySqlDataReader = command.ExecuteReader()
+                        If reader.Read() Then
+                            ' Populate text boxes with data from the database
+                            txtName.Text = reader("dName").ToString()
+                            txtEmail.Text = reader("dEmail").ToString()
+                            txtPassword.Text = reader("dPassword").ToString()
+                            txtAge.Text = reader("dAge").ToString()
+                            txtHeight.Text = reader("dHeight").ToString()
+                            txtWeight.Text = reader("dcurrentWeight").ToString()
+                            lblName.Text = reader("dName").ToString()
+                            lblCurrentStreak.Text = reader("dcurrentStreak").ToString()
+                            lblHighestStreak.Text = reader("dhighestStreak").ToString()
+
+                            ' Calculate and display BMI
+                            CalculateAndDisplayBMI(reader("dAge"), reader("dHeight"), reader("dcurrentWeight"))
+
+                            ' Allow editing
+                            EnableEditing()
+                        Else
+                            MessageBox.Show("User not found.")
+                        End If
+                    End Using
+                Catch ex As Exception
+                    MessageBox.Show("Error fetching data: " & ex.Message)
+                End Try
+            End Using
+        End Using
+    End Sub
+
+    ' Placeholder for the update logic
+    Private Sub UpdateDatabase()
+        ' Construct the update query
+        Dim updateQuery As String = "UPDATE tblUsers SET dName = @dName, dEmail = @dEmail, dPassword = @dPassword, dAge = @dAge, dHeight = @dHeight, dcurrentWeight = @dcurrentWeight, dbmi = @dbmi"
+
+        Using connection As New MySqlConnection(connectionString)
+            Using command As New MySqlCommand(updateQuery, connection)
+                ' Set the parameters for the update query
+                command.Parameters.AddWithValue("@dName", txtName.Text)
+                command.Parameters.AddWithValue("@dEmail", txtEmail.Text)
+                command.Parameters.AddWithValue("@dPassword", txtPassword.Text)
+                command.Parameters.AddWithValue("@dAge", txtAge.Text)
+                command.Parameters.AddWithValue("@dHeight", txtHeight.Text)
+                command.Parameters.AddWithValue("@dcurrentWeight", txtWeight.Text)
+
+                ' Calculate BMI and set the parameter
+                Dim bmi As Double = CalculateBMI(Convert.ToDouble(txtAge.Text), Convert.ToDouble(txtHeight.Text), Convert.ToDouble(txtWeight.Text))
+                command.Parameters.AddWithValue("@dbmi", bmi)
+
+                Try
+                    ' Open the connection and execute the update query
+                    connection.Open()
+                    command.ExecuteNonQuery()
+                    MessageBox.Show("Update successful.")
+                Catch ex As Exception
+                    MessageBox.Show("Error updating data: " & ex.Message)
+                End Try
+            End Using
+        End Using
+    End Sub
+
+
+    ' Disable editing of text boxes
+    Private Sub DisableEditing()
+        txtName.ReadOnly = True
+        txtEmail.ReadOnly = True
+        txtPassword.ReadOnly = True
+        txtAge.ReadOnly = True
+        txtHeight.ReadOnly = True
+        txtWeight.ReadOnly = True
+    End Sub
+
+    ' Calculate BMI based on age, height, and weight
+    Private Function CalculateBMI(ByVal age As Double, ByVal height As Double, ByVal weight As Double) As Double
+        ' BMI formula: BMI = weight (kg) / (height (m))^2
+        ' Convert height from cm to m
+        Dim heightInMeters As Double = height / 100.0
+        ' Calculate BMI
+        Return weight / (heightInMeters * heightInMeters)
+    End Function
+
+    ' Display BMI on the form
+    Private Sub CalculateAndDisplayBMI(ByVal age As Object, ByVal height As Object, ByVal weight As Object)
+        If age IsNot DBNull.Value AndAlso height IsNot DBNull.Value AndAlso weight IsNot DBNull.Value Then
+            Dim bmi As Double = CalculateBMI(Convert.ToDouble(age), Convert.ToDouble(height), Convert.ToDouble(weight))
+            txtBMI.Text = $"{bmi:F2}"
+        Else
+            txtBMI.Text = "BMI: N/A"
+        End If
+    End Sub
+
+    Private Sub txtName_TextChanged(sender As Object, e As EventArgs) Handles txtName.TextChanged
+        txtName.MaxLength = 20
+    End Sub
+
+    Private Sub txtEmail_TextChanged(sender As Object, e As EventArgs) Handles txtEmail.TextChanged
+        txtEmail.MaxLength = 30
+    End Sub
+
+    Private Sub txtPassword_TextChanged(sender As Object, e As EventArgs) Handles txtPassword.TextChanged
+        txtPassword.MaxLength = 20
+        txtPassword.UseSystemPasswordChar = True
+    End Sub
+
+    Private Sub txtAge_TextChanged(sender As Object, e As EventArgs) Handles txtAge.TextChanged
+        txtAge.MaxLength = 3
+        ' Remove non-numeric characters
+        txtAge.Text = New String(txtAge.Text.Where(Function(c) Char.IsDigit(c)).ToArray())
+    End Sub
+
+    Private Sub txtHeight_KeyPress(sender As Object, e As KeyPressEventArgs) Handles txtHeight.KeyPress
+        txtHeight.MaxLength = 3
+
+        ' Allow only digits, backspace, and the decimal point
+        If Not Char.IsDigit(e.KeyChar) AndAlso e.KeyChar <> ControlChars.Back AndAlso e.KeyChar <> "." Then
+            e.Handled = True
+        End If
+
+        ' Allow only one decimal point
+        Dim textBox = TryCast(sender, TextBox)
+        If textBox IsNot Nothing AndAlso e.KeyChar = "." AndAlso (textBox.Text.Contains(".") OrElse textBox.Text.Length >= 5) Then
+            e.Handled = True
+        End If
+
+        ' Convert whole number to decimal if a decimal point is entered
+        If textBox IsNot Nothing AndAlso e.KeyChar = "." AndAlso Not textBox.Text.Contains(".") Then
+            Dim cursorPosition = textBox.SelectionStart
+            textBox.Text = textBox.Text.Insert(cursorPosition, ".0")
+            textBox.SelectionStart = cursorPosition + 2  ' Set the cursor after the inserted ".0"
+            e.Handled = True
+        End If
+    End Sub
+
+    Private Sub txtWeight_KeyPress(sender As Object, e As KeyPressEventArgs) Handles txtWeight.KeyPress
+        txtWeight.MaxLength = 4
+
+        ' Allow only digits, backspace, and the decimal point
+        If Not Char.IsDigit(e.KeyChar) AndAlso e.KeyChar <> ControlChars.Back AndAlso e.KeyChar <> "." Then
+            e.Handled = True
+        End If
+
+        ' Allow only one decimal point
+        Dim textBox = TryCast(sender, TextBox)
+        If textBox IsNot Nothing AndAlso e.KeyChar = "." AndAlso (textBox.Text.Contains(".") OrElse textBox.Text.Length >= 5) Then
+            e.Handled = True
+        End If
+
+        ' Convert whole number to decimal if a decimal point is entered
+        If textBox IsNot Nothing AndAlso e.KeyChar = "." AndAlso Not textBox.Text.Contains(".") Then
+            Dim cursorPosition = textBox.SelectionStart
+            textBox.Text = textBox.Text.Insert(cursorPosition, ".0")
+            textBox.SelectionStart = cursorPosition + 2  ' Set the cursor after the inserted ".0"
+            e.Handled = True
+        End If
+    End Sub
+
+    Private Sub lblName_Click(sender As Object, e As EventArgs) Handles lblName.Click
+
+    End Sub
+End Class

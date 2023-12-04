@@ -1,0 +1,85 @@
+Imports MySql.Data.MySqlClient
+
+Public Class frmDiet
+    ' Connection string
+    Dim connectionString As String = "Server=localhost;Database=shapeactive;Uid=root;Pwd=nics1108;"
+
+    ' Use a property to store and retrieve the user ID
+    Public Useremail As String = frmLogin.Useremail
+
+    ' Retrieve and display BMI category when the form loads
+    Private Sub frmDiet_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        Me.WindowState = FormWindowState.Maximized
+        ' Fetch BMI data from MySQL using the stored userId
+        Dim query As String = "SELECT dbmi FROM tblUsers WHERE dusername = @dusername"
+        Using connection As New MySqlConnection(connectionString)
+            Using command As New MySqlCommand(query, connection)
+                command.Parameters.AddWithValue("@dusername", Useremail)
+
+                Try
+                    connection.Open()
+                    Dim bmi As Object = command.ExecuteScalar()
+
+                    If bmi IsNot DBNull.Value AndAlso Double.TryParse(bmi.ToString(), Nothing) Then
+                        ' Display BMI category
+                        DisplayBMICategory(Convert.ToDouble(bmi))
+                    Else
+                        MessageBox.Show("BMI data not found.")
+                    End If
+                Catch ex As Exception
+                    MessageBox.Show("Error fetching BMI data: " & ex.Message)
+                End Try
+            End Using
+        End Using
+    End Sub
+
+    ' Display BMI category based on BMI value
+    Private Sub DisplayBMICategory(ByVal bmi As Double)
+        ' Implement your logic to categorize BMI
+        Dim bmiCategory As String = GetBMICategory(bmi)
+
+        ' Display the BMI category in the label
+        lblBmi.Text = "Your BMI Score: " & $"{bmi:F2}"
+        lblBmiCategory.Text = "Your BMI Category: " & bmiCategory
+
+        ' Update the ProgressBar based on BMI category
+        UpdateProgressBar(bmiCategory)
+    End Sub
+
+    Private Sub UpdateProgressBar(ByVal bmiCategory As String)
+        ' Set ProgressBar value based on BMI category
+        Select Case bmiCategory
+            Case "Underweight"
+                progressBarBMI.Value = 25
+            Case "Normal Weight"
+                progressBarBMI.Value = 50
+            Case "Overweight"
+                progressBarBMI.Value = 75
+            Case "Obese"
+                progressBarBMI.Value = 100
+            Case Else
+                progressBarBMI.Value = 0 ' Handle unknown category
+        End Select
+    End Sub
+
+    ' Placeholder for the BMI category logic
+    Private Function GetBMICategory(ByVal bmi As Double) As String
+        ' Implement your logic to categorize BMI
+        ' Example logic: You need to define your own BMI ranges and categories
+        If bmi < 18.5 Then
+            Return "Underweight"
+        ElseIf bmi >= 18.5 AndAlso bmi < 25.0 Then
+            Return "Normal Weight"
+        ElseIf bmi >= 25.0 AndAlso bmi < 30.0 Then
+            Return "Overweight"
+        Else
+            Return "Obese"
+        End If
+    End Function
+
+    Private Sub HomeToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles HomeToolStripMenuItem.Click
+        Me.Hide()
+        frmMain.Show()
+    End Sub
+
+End Class

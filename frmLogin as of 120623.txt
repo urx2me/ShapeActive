@@ -1,0 +1,89 @@
+Imports Guna.UI2.WinForms ' Import Guna UI library
+Imports System.Text.RegularExpressions
+Imports MySql.Data.MySqlClient
+
+Public Class frmLogin
+    Private Sub btnLogin_Click(sender As Object, e As EventArgs) Handles btnLogin.Click
+        Dim email As String = txtEmail.Text
+        Dim password As String = txtPassword.Text
+
+        Dim userInfo As Dictionary(Of String, Object) = AuthenticateUser(email, password)
+
+        If userInfo IsNot Nothing Then
+            ' Successful login, open the main form with the user information.
+            Dim mainForm As New frmMain(userInfo("dname").ToString(), Convert.ToDouble(userInfo("dheight")), Convert.ToDouble(userInfo("dcurrentWeight")))
+            Me.Hide() ' Hide the current login form.
+            mainForm.Show() ' Show the frmMain form.
+        Else
+            MessageBox.Show("Invalid username or password.")
+        End If
+    End Sub
+
+    Private Function AuthenticateUser(email As String, password As String) As Dictionary(Of String, Object)
+        Dim connectionString As String = "Server=localhost;Database=shapeactive;Uid=root;Pwd=Charles-061803;"
+        Using connection As New MySqlConnection(connectionString)
+            Try
+                connection.Open()
+                Dim query As String = "SELECT dname, dheight, dcurrentWeight FROM tblUsers WHERE demail = @demail AND dpassword = @dpassword"
+                Using command As New MySqlCommand(query, connection)
+                    command.Parameters.AddWithValue("@demail", email)
+                    command.Parameters.AddWithValue("@dpassword", password)
+
+                    Using reader As MySqlDataReader = command.ExecuteReader()
+                        If reader.Read() Then
+                            ' Return user information as a dictionary
+                            Dim userInfo As New Dictionary(Of String, Object)()
+                            userInfo.Add("dname", reader("dname").ToString())
+                            userInfo.Add("dheight", If(reader("dheight") IsNot DBNull.Value, Convert.ToDouble(reader("dheight")), 0))
+                            userInfo.Add("dcurrentWeight", If(reader("dcurrentWeight") IsNot DBNull.Value, Convert.ToDouble(reader("dcurrentWeight")), 0))
+
+                            Return userInfo
+                        Else
+                            Return Nothing
+                        End If
+                    End Using
+                End Using
+            Catch ex As Exception
+                MessageBox.Show("Error: " & ex.Message)
+                Return Nothing
+            End Try
+        End Using
+    End Function
+
+    Private Sub btnSignup_Click(sender As Object, e As EventArgs) Handles btnSignup.Click
+        Me.Hide()
+        frmSignup.Show()
+    End Sub
+
+    ' Use Guna TextBox instead of regular TextBox for Email and Password
+    Private Sub txtEmail_TextChanged(sender As Object, e As EventArgs) Handles txtEmail.TextChanged
+        txtEmail.MaxLength = 30
+    End Sub
+
+    Private Sub txtPassword_TextChanged(sender As Object, e As EventArgs) Handles txtPassword.TextChanged
+        ' Check if there is text in the TextBox
+        If Not String.IsNullOrWhiteSpace(txtPassword.Text) Then
+            btnShow.Visible = True  ' Make the button visible
+        Else
+            btnShow.Visible = False ' Hide the button
+        End If
+        txtPassword.MaxLength = 20
+        txtPassword.UseSystemPasswordChar = True
+    End Sub
+    Dim isTextVisible As Boolean = False
+    Private Sub btnShow_Click(sender As Object, e As EventArgs) Handles btnShow.Click
+        ' Toggle the visibility of the text in the TextBox
+        isTextVisible = Not isTextVisible
+        If isTextVisible Then
+            txtPassword.UseSystemPasswordChar = False ' Display the text
+            btnShow.Text = "Hide"  ' Change button text to "Hide"
+        Else
+            txtPassword.UseSystemPasswordChar = True  ' Hide the text
+            btnShow.Text = "Show"  ' Change button text to "Show"
+        End If
+    End Sub
+
+    Private Sub frmLogin_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+
+    End Sub
+End Class

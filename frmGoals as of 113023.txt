@@ -125,4 +125,33 @@ Public Class frmGoals
         ' Close the form when the exit button is pressed
         Me.Close()
     End Sub
+
+Private Sub HomeToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles HomeToolStripMenuItem.Click
+    Close()
+End Sub
+
+Private Sub ProfileToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ProfileToolStripMenuItem.Click
+    frmProfile.Show()
+    Close()
+End Sub
+
+Private Sub LogoutToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles LogoutToolStripMenuItem.Click
+    frmLogin.Show()
+    Me.Close()
+End Sub
+
+Private Sub ActivitiesToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ActivitiesToolStripMenuItem.Click
+    frmActivities.Show()
+    Close()
+End Sub
+
+Private Sub DietToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles DietToolStripMenuItem.Click
+    frmDiet.Show()
+    Close()
+End Sub
+
+Private Sub AchievementToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles AchievementToolStripMenuItem.Click
+    frmAchievements.Show()
+    Close()
+End Sub
 End Class

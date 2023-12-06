@@ -221,4 +221,28 @@ Public Class frmProfile
         UpdateDatabase()
         DisableEditing()
     End Sub
+Private Sub btnLogout_Click(sender As Object, e As EventArgs) Handles btnLogout.Click
+    frmLogin.Show()
+    Close()
+End Sub
+
+Private Sub ActivitiesToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ActivitiesToolStripMenuItem.Click
+    frmActivities.Show()
+    Close()
+End Sub
+
+Private Sub DietToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles DietToolStripMenuItem.Click
+    frmDiet.Show()
+    Close()
+End Sub
+
+Private Sub AchievementToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles AchievementToolStripMenuItem.Click
+    frmAchievements.Show()
+    Close()
+End Sub
+
+Private Sub GoalsToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles GoalsToolStripMenuItem.Click
+    frmGoals.Show()
+    Close()
+End Sub
 End Class

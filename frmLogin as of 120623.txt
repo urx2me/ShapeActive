@@ -10,8 +10,10 @@ Public Class frmLogin
         Dim userInfo As Dictionary(Of String, Object) = AuthenticateUser(email, password)
 
         If userInfo IsNot Nothing Then
+            Debug.WriteLine("User ID from authentication: " & userInfo("duserId").ToString())
             ' Successful login, open the main form with the user information.
-            Dim mainForm As New frmMain(userInfo("dname").ToString(), Convert.ToDouble(userInfo("dheight")), Convert.ToDouble(userInfo("dcurrentWeight")))
+            Dim mainForm As New frmMain(userInfo("dname").ToString(), Convert.ToInt32(userInfo("duserId")), Convert.ToDouble(userInfo("dheight")), Convert.ToDouble(userInfo("dcurrentWeight")))
+
             Me.Hide() ' Hide the current login form.
             mainForm.Show() ' Show the frmMain form.
         Else
@@ -21,10 +23,11 @@ Public Class frmLogin
 
     Private Function AuthenticateUser(email As String, password As String) As Dictionary(Of String, Object)
         Dim connectionString As String = "Server=localhost;Database=shapeactive;Uid=root;Pwd=Charles-061803;"
+
         Using connection As New MySqlConnection(connectionString)
             Try
                 connection.Open()
-                Dim query As String = "SELECT dname, dheight, dcurrentWeight FROM tblUsers WHERE demail = @demail AND dpassword = @dpassword"
+                Dim query As String = "SELECT duserId, dname, dheight, dcurrentWeight FROM tblUsers WHERE demail = @demail AND dpassword = @dpassword"
                 Using command As New MySqlCommand(query, connection)
                     command.Parameters.AddWithValue("@demail", email)
                     command.Parameters.AddWithValue("@dpassword", password)
@@ -33,6 +36,7 @@ Public Class frmLogin
                         If reader.Read() Then
                             ' Return user information as a dictionary
                             Dim userInfo As New Dictionary(Of String, Object)()
+                            userInfo.Add("duserId", Convert.ToInt32(reader("duserId")))
                             userInfo.Add("dname", reader("dname").ToString())
                             userInfo.Add("dheight", If(reader("dheight") IsNot DBNull.Value, Convert.ToDouble(reader("dheight")), 0))
                             userInfo.Add("dcurrentWeight", If(reader("dcurrentWeight") IsNot DBNull.Value, Convert.ToDouble(reader("dcurrentWeight")), 0))
@@ -49,6 +53,7 @@ Public Class frmLogin
             End Try
         End Using
     End Function
+
 
     Private Sub btnSignup_Click(sender As Object, e As EventArgs) Handles btnSignup.Click
         Me.Hide()

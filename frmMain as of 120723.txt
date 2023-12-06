@@ -1,0 +1,139 @@
+Imports Microsoft.VisualBasic.ApplicationServices
+Imports MySql.Data.MySqlClient
+Public Class frmMain
+    Dim connectionString As String = "server=localhost;user id=root;password=Charles-061803;database=shapeactive"
+    Dim connection As New MySqlConnection(connectionString)
+
+    Private _username As String
+    Private _height As Double
+    Private _weight As Double
+    Private _userId As Integer ' Add a new variable to store the user ID
+
+
+
+
+
+    Public Sub New(username As String, userId As Integer, height As Double, weight As Double)
+        InitializeComponent()
+        _username = username
+        _userId = userId
+        _height = height
+        _weight = weight
+    End Sub
+
+
+    Public Sub New(username As String)
+        InitializeComponent()
+        _username = username ' Initialize _username in the second constructor
+    End Sub
+
+    Private Sub frmMain_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        lblGreeting.Text = "Hello, " & _username & "!"
+        CalculateAndDisplayBMI()
+
+        ' Load and display the latest current weight and target weight
+        LoadLatestGoals()
+    End Sub
+    Private Sub LoadLatestGoals()
+        ' Query the database to get the latest goal information for the current user
+        Dim userId As Integer = GetUserId()
+
+        If userId <> -1 Then
+            Dim query As String = "SELECT dcurrentWeight, dtargetWeight, dgoalType, dgoalEnd FROM tblgoals WHERE duserId = @userId ORDER BY dgoalid DESC LIMIT 1"
+
+            Using connection As New MySqlConnection(connectionString)
+                Using cmd As New MySqlCommand(query, connection)
+                    cmd.Parameters.AddWithValue("@userId", userId)
+
+                    Try
+                        connection.Open()
+                        Dim reader As MySqlDataReader = cmd.ExecuteReader()
+
+                        If reader.Read() Then
+                            ' Display the latest goal type and target date in lblGoal
+                            Dim goalType As String = reader("dgoalType").ToString()
+                            Dim goalEnd As Date = Convert.ToDateTime(reader("dgoalEnd"))
+
+                            lblGoal.Text = $"Your Goal is to {goalType} by the end of {goalEnd.ToString("yyyy-MM-dd")}."
+
+                            ' Calculate and display the days left
+                            Dim daysLeft As Integer = CInt((goalEnd - Date.Today).TotalDays)
+                            lblDaysLeft.Text = $"You have {daysLeft} days left to achieve your Goal."
+
+                            ' Display the latest current weight and target weight in labels
+                            lblCurrentWeight.Text = "Current Weight: " & reader("dcurrentWeight").ToString() & " kg"
+                            lblTargetWeight.Text = "Target Weight: " & reader("dtargetWeight").ToString() & " kg"
+                        Else
+                            ' No goals found, display default values or handle as needed
+                            lblGoal.Text = "No current goal set."
+                            lblDaysLeft.Text = ""
+                            lblCurrentWeight.Text = "Current Weight: N/A"
+                            lblTargetWeight.Text = "Target Weight: N/A"
+                        End If
+                    Catch ex As Exception
+                        ' Handle the exception, e.g., show an error message
+                        MessageBox.Show("Error loading latest goals: " & ex.Message)
+                    End Try
+                End Using
+            End Using
+        End If
+    End Sub
+
+
+
+    Private Function GetUserId() As Integer
+        ' Return the stored user ID
+        Return _userId
+    End Function
+
+
+    Private Sub CalculateAndDisplayBMI()
+        If _height > 0 AndAlso _weight > 0 Then
+            Dim heightInMeters As Double = _height * 0.3048
+            Dim bmi As Double = _weight / (heightInMeters * heightInMeters)
+            lblBMI.Text = "BMI: " & bmi.ToString("F2")
+        Else
+            lblBMI.Text = "BMI: N/A"
+        End If
+    End Sub
+
+    Public Sub UpdateHeightAndWeight(newHeight As Double, newWeight As Double)
+        _height = newHeight
+        _weight = newWeight
+        CalculateAndDisplayBMI()
+    End Sub
+
+
+    ' ... (rest of your code)
+
+
+    Private Sub ProfileToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ProfileToolStripMenuItem.Click
+        frmProfile.Show()
+    End Sub
+
+    Private Sub ActivitiesToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ActivitiesToolStripMenuItem.Click
+        frmActivities.Show()
+    End Sub
+
+    Private Sub DietToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles DietToolStripMenuItem.Click
+        frmDiet.Show()
+    End Sub
+
+    Private Sub AchievementToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles AchievementToolStripMenuItem.Click
+        frmAchievements.Show()
+    End Sub
+
+    Private Sub GoalsToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles GoalsToolStripMenuItem.Click
+        Dim goalsForm As New frmGoals(GetUserId())
+        goalsForm.Show()
+    End Sub
+
+    Private Sub LogoutToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles LogoutToolStripMenuItem.Click
+        frmLogin.Show()
+        Me.Close()
+    End Sub
+
+    Private Sub btnRefresh_Click(sender As Object, e As EventArgs) Handles btnRefresh.Click
+        LoadLatestGoals()
+    End Sub
+End Class

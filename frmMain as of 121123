@@ -1,0 +1,313 @@
+Imports System.Drawing.Drawing2D
+Imports Microsoft.VisualBasic.ApplicationServices
+Imports MySql.Data.MySqlClient
+Public Class frmMain
+    Dim connectionString As String = "server=localhost;user id=root;password=Charles-061803;database=shapeactive"
+    Dim connection As New MySqlConnection(connectionString)
+
+    Private _username As String
+    Private _height As Double
+    Private _weight As Double
+    Private _userId As Integer ' Add a new variable to store the user ID
+
+
+    Public Sub New(username As String, userId As Integer, height As Double, weight As Double)
+        InitializeComponent()
+        _username = username
+        _userId = userId
+        _height = height
+        _weight = weight
+    End Sub
+
+
+    Public Sub New(username As String)
+        InitializeComponent()
+        _username = username ' Initialize _username in the second constructor
+    End Sub
+
+    Private Sub frmMain_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        lblGreeting.Text = "Hello, " & _username & "!"
+
+        lblUserID.Text = $"User ID:  {_userId}"
+        dgvGoal.Columns.Add("dgoalType", "Goal Type")
+        dgvGoal.Columns.Add("dcurrentWeight", "Current Weight")
+        dgvGoal.Columns.Add("dtargetWeight", "Target Weight")
+        dgvGoal.Columns.Add("dgoalStart", "Start Date")
+        dgvGoal.Columns.Add("dgoalEnd", "End Date")
+        dgvGoal.Columns.Add("dstatus", "Status")
+        dgvGoal.ColumnHeadersDefaultCellStyle.BackColor = ColorTranslator.FromHtml("#87611e")
+        ' Load and display the latest current weight and target weight
+        RoundCorners(Panel3, 20)
+        RoundCorners(Panel2, 30)
+        RoundCorners(Panel1, 5)
+        RoundCorners(Panel4, 20)
+        LoadLatestGoals()
+
+        ' Repeat the above line for each column you want in dgvInfo2
+
+        ' Set column names for dgvInfo2
+        dgvInfo2.Columns.Add("Age", "Age")
+        dgvInfo2.Columns.Add("Height", "Height")
+        dgvInfo2.Columns.Add("Weight", "Weight")
+        dgvInfo2.Columns.Add("BMI", "BMI")
+
+        dgvGoals2.Columns.Add("GoalType", "Goal Type")
+        dgvGoals2.Columns.Add("TargetWeight", "Target Weight")
+        dgvGoals2.Columns.Add("GoalStart", "Start Date")
+        dgvGoals2.Columns.Add("GoalEnd", "End Date")
+        dgvGoals2.Columns.Add("Status", "Status")
+
+    End Sub
+    Private Sub RoundCorners(panel As Panel, radius As Integer)
+        ' Create a rounded rectangle using GraphicsPath
+        Dim path As New GraphicsPath()
+        Dim rect As New Rectangle(0, 0, panel.Width, panel.Height)
+
+        path.AddArc(rect.Left, rect.Top, radius * 2, radius * 2, 180, 90)
+        path.AddArc(rect.Right - radius * 2, rect.Top, radius * 2, radius * 2, 270, 90)
+        path.AddArc(rect.Right - radius * 2, rect.Bottom - radius * 2, radius * 2, radius * 2, 0, 90)
+        path.AddArc(rect.Left, rect.Bottom - radius * 2, radius * 2, radius * 2, 90, 90)
+        path.CloseFigure()
+
+        ' Set the Region property of the Panel to the rounded rectangle
+        panel.Region = New Region(path)
+    End Sub
+    Private Sub LoadLatestGoals()
+        Dim userId As Integer = GetUserId()
+
+        If userId <> -1 Then
+            Dim query As String = "SELECT dgoalType, dcurrentWeight, dtargetWeight, dgoalStart, dgoalEnd, dstatus " &
+                                  "FROM tblgoals WHERE duserId = @userId ORDER BY dgoalid DESC LIMIT 1"
+
+            Using connection As New MySqlConnection(connectionString)
+                Using cmd As New MySqlCommand(query, connection)
+                    cmd.Parameters.AddWithValue("@userId", userId)
+
+                    Try
+                        connection.Open()
+                        Dim reader As MySqlDataReader = cmd.ExecuteReader()
+
+                        If reader.Read() Then
+                            ' Display the latest goal information in the DataGridView (dgvGoal)
+                            dgvGoal.Rows.Clear()
+
+                            dgvGoal.Rows.Add(reader("dgoalType"), reader("dcurrentWeight"), reader("dtargetWeight"),
+                                            reader("dgoalStart"), reader("dgoalEnd"), reader("dstatus"))
+
+                            ' Calculate and display the days left
+                            Dim goalEnd As Date = Convert.ToDateTime(reader("dgoalEnd"))
+                            Dim daysLeft As Integer = CInt((goalEnd - Date.Today).TotalDays)
+                            lblDaysLeft.Text = $"You have {daysLeft} days left to achieve your Goal."
+                        Else
+                            ' No goals found
+                            lblDaysLeft.Text = ""
+                            dgvGoal.Rows.Clear()
+                        End If
+                    Catch ex As Exception
+                        ' Handle the exception, e.g., show an error message
+                        MessageBox.Show("Error loading latest goals: " & ex.Message)
+                    End Try
+                End Using
+            End Using
+        End If
+    End Sub
+
+
+
+    Private Function GetUserId() As Integer
+        ' Return the stored user ID
+        Return _userId
+    End Function
+
+    Private Sub ProfileToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ProfileToolStripMenuItem.Click
+        frmProfile.Show()
+    End Sub
+
+    Private Sub ActivitiesToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ActivitiesToolStripMenuItem.Click
+        Dim activitiesForm As New frmActivities(_userId)
+        activitiesForm.Show()
+    End Sub
+
+    Private Sub DietToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles DietToolStripMenuItem.Click
+        frmDiet.Show()
+    End Sub
+
+    Private Sub AchievementToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles AchievementToolStripMenuItem.Click
+        frmAchievements.Show()
+    End Sub
+
+    Private Sub GoalsToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles GoalsToolStripMenuItem.Click
+        Dim goalsForm As New frmGoals(GetUserId())
+        goalsForm.Show()
+    End Sub
+
+    Private Sub LogoutToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles LogoutToolStripMenuItem.Click
+        frmLogin.Show()
+        Me.Close()
+    End Sub
+
+    Private Sub btnRefresh_Click(sender As Object, e As EventArgs) Handles btnRefresh.Click
+        LoadLatestGoals()
+    End Sub
+
+    Private Sub lblCaloriesEaten_Click(sender As Object, e As EventArgs) Handles lblCaloriesEaten.Click
+
+    End Sub
+
+    Private Sub lblBurnedCalories_Click(sender As Object, e As EventArgs) Handles lblBurnedCalories.Click
+    End Sub
+
+    Private Sub btnSearch_Click(sender As Object, e As EventArgs) Handles btnSearch.Click
+        lblGoal.Text = "Current Goal"
+        Dim searchedUserId As Integer
+
+        ' Try to parse the user input as an integer
+        If Integer.TryParse(txtSearch.Text, searchedUserId) Then
+            ' Call a method to fetch user information by ID
+            Dim searchedUser As UserInfo = GetUserById(searchedUserId)
+
+            If searchedUser IsNot Nothing Then
+                ' Display the information in labels
+                lblUser2.Text = searchedUser.Username
+                lblUID2.Text = $"User ID: {searchedUser.UserId}"
+
+
+                ' Fetch additional information (dage, dheight, dcurrentWeight) for the searched user
+                Dim userAdditionalInfo As UserAdditionalInfo = GetUserAdditionalInfo(searchedUserId)
+
+                ' Populate dgvInfo2 with the retrieved information
+                If userAdditionalInfo IsNot Nothing Then
+                    dgvInfo2.Rows.Clear()
+                    dgvInfo2.Rows.Add(userAdditionalInfo.Age, userAdditionalInfo.Height, userAdditionalInfo.CurrentWeight, userAdditionalInfo.BMI)
+
+                Else
+                    ' Handle the case where additional information is not found
+                    dgvInfo2.Rows.Clear()
+                End If
+                LoadUserGoals(searchedUserId)
+            Else
+                ' Handle the case where the user is not found
+                lblUser2.Text = "User not found"
+                lblUID2.Text = ""
+                dgvInfo2.Rows.Clear()
+            End If
+        Else
+            ' Handle the case where the input is not a valid integer
+            lblUser2.Text = "Invalid User ID"
+            lblUID2.Text = ""
+            dgvInfo2.Rows.Clear()
+        End If
+    End Sub
+    Private Sub LoadUserGoals(userId As Integer)
+        ' Fetch and display the current goal for the searched user
+        Dim query As String = "SELECT dgoalType, dtargetWeight, dgoalStart, dgoalEnd, dstatus " &
+                              "FROM tblgoals WHERE duserId = @userId ORDER BY dgoalid DESC LIMIT 1"
+
+        Using connection As New MySqlConnection(connectionString)
+            Using cmd As New MySqlCommand(query, connection)
+                cmd.Parameters.AddWithValue("@userId", userId)
+
+                Try
+                    connection.Open()
+                    Dim reader As MySqlDataReader = cmd.ExecuteReader()
+
+                    If reader.Read() Then
+                        ' Display the latest goal information in the DataGridView (dgvGoals2)
+                        dgvGoals2.Rows.Clear()
+                        dgvGoals2.Rows.Add(reader("dgoalType"), reader("dtargetWeight"),
+                                           reader("dgoalStart"), reader("dgoalEnd"), reader("dstatus"))
+                    Else
+                        ' No goals found
+                        dgvGoals2.Rows.Clear()
+                    End If
+                Catch ex As Exception
+                    ' Handle the exception, e.g., show an error message
+                    MessageBox.Show("Error loading user goals: " & ex.Message)
+                End Try
+            End Using
+        End Using
+    End Sub
+    Private Function GetUserById(userId As Integer) As UserInfo
+        Dim query As String = "SELECT dname FROM tblusers WHERE duserId = @userId"
+
+        Using connection As New MySqlConnection(connectionString)
+            Using cmd As New MySqlCommand(query, connection)
+                cmd.Parameters.AddWithValue("@userId", userId)
+
+                Try
+                    connection.Open()
+                    Dim reader As MySqlDataReader = cmd.ExecuteReader()
+
+                    If reader.Read() Then
+                        ' Return user information
+                        Return New UserInfo With {
+                            .Username = reader("dname").ToString(),
+                            .UserId = userId
+                        }
+                    End If
+                Catch ex As Exception
+                    ' Handle the exception, e.g., show an error message
+                    MessageBox.Show("Error fetching user information: " & ex.Message)
+                End Try
+            End Using
+        End Using
+
+        Return Nothing ' Return null if the user is not found
+    End Function
+    Private Function GetUserAdditionalInfo(userId As Integer) As UserAdditionalInfo
+        Dim query As String = "SELECT dage, dheight, dcurrentWeight FROM tblusers WHERE duserId = @userId"
+
+        Using connection As New MySqlConnection(connectionString)
+            Using cmd As New MySqlCommand(query, connection)
+                cmd.Parameters.AddWithValue("@userId", userId)
+
+                Try
+                    connection.Open()
+                    Dim reader As MySqlDataReader = cmd.ExecuteReader()
+
+                    If reader.Read() Then
+                        ' Return additional user information
+                        Return New UserAdditionalInfo With {
+                            .Age = If(Not IsDBNull(reader("dage")), Convert.ToInt32(reader("dage")), 0),
+                            .Height = If(Not IsDBNull(reader("dheight")), Convert.ToDouble(reader("dheight")), 0),
+                            .CurrentWeight = If(Not IsDBNull(reader("dcurrentWeight")), Convert.ToDouble(reader("dcurrentWeight")), 0),
+                            .BMI = CalculateBMI(reader("dheight"), reader("dcurrentWeight"))
+                        }
+                    End If
+                Catch ex As Exception
+                    ' Handle the exception, e.g., show an error message
+                    MessageBox.Show("Error fetching user additional information: " & ex.Message)
+                End Try
+            End Using
+        End Using
+
+        Return Nothing ' Return null if the additional information is not found
+    End Function
+
+    ' New class to store additional user information
+    Private Class UserAdditionalInfo
+        Public Property Age As Integer
+        Public Property Height As Double
+        Public Property CurrentWeight As Double
+        Public Property BMI As Double
+    End Class
+    Private Function CalculateBMI(heightFeet As Object, weightKg As Object) As Double
+        ' Convert height from feet to meters
+        Dim heightMeters As Double = Convert.ToDouble(heightFeet) * 0.3048 ' 1 foot = 0.3048 meters
+
+        ' Implement BMI calculation using weight in kg and height in meters
+        ' Formula: BMI = weight (kg) / (height (m))^2
+        If heightMeters > 0 Then
+            Return Convert.ToDouble(weightKg) / (heightMeters * heightMeters)
+        Else
+            Return 0
+        End If
+    End Function
+    ' ... (existing code)
+
+    ' New class to store user information
+    Private Class UserInfo
+        Public Property Username As String
+        Public Property UserId As Integer
+    End Class
+End Class

@@ -1,0 +1,232 @@
+Imports MySql.Data.MySqlClient
+
+Public Class frmGoals
+    ' Set up your MySQL connection string
+    Dim connectionString As String = "server=localhost;uid=root;password=nics1108;database=shapeactive"
+    Dim connection As New MySqlConnection(connectionString)
+
+    Private _userId As Integer
+    Public Sub New(userId As Integer)
+        InitializeComponent()
+        _userId = userId
+    End Sub
+    Private Sub frmGoals_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        ' Load the user's current weight and set the current date when the form loads
+        LoadCurrentWeight()
+        SetCurrentDate()
+        LoadGoalHistory()
+    End Sub
+
+    Private Sub LoadGoalHistory()
+        ' Query the database to get the current user's goal history
+        Dim query As String = "SELECT dgoalType, dcurrentWeight, dtargetWeight, dgoalStart, dgoalEnd, dstatus " &
+                              "FROM shapeactive.tblgoals WHERE duserId = @userId ORDER BY dgoalEnd DESC"
+
+        Using cmd As New MySqlCommand(query, connection)
+            cmd.Parameters.AddWithValue("@userId", _userId)
+
+            Try
+                connection.Open()
+                Dim adapter As New MySqlDataAdapter(cmd)
+                Dim dt As New DataTable()
+                adapter.Fill(dt)
+
+                ' Bind the DataTable to the DataGridView
+                dgvHistory.DataSource = dt
+
+                ' Optionally, you can customize column headers or formatting here
+
+            Catch ex As Exception
+                MessageBox.Show("Error loading goal history: " & ex.Message)
+            Finally
+                connection.Close()
+            End Try
+        End Using
+    End Sub
+    Private Sub dgvHistory_DataBindingComplete(sender As Object, e As DataGridViewBindingCompleteEventArgs) Handles dgvHistory.DataBindingComplete
+        ' Optionally, format the DataGridView after data binding is complete
+        ' For example, you can set column headers or customize formatting here
+        dgvHistory.Columns("dgoalType").HeaderText = "Goal Type"
+        dgvHistory.Columns("dcurrentWeight").HeaderText = "Current Weight"
+        dgvHistory.Columns("dtargetWeight").HeaderText = "Target Weight"
+        dgvHistory.Columns("dgoalStart").HeaderText = "Start Date"
+        dgvHistory.Columns("dgoalEnd").HeaderText = "End Date"
+        dgvHistory.Columns("dstatus").HeaderText = "Status"
+
+        ' You can customize additional formatting or appearance properties here
+    End Sub
+    Private Sub LoadCurrentWeight()
+        ' Query the database to get the current user's current weight
+        Dim query As String = "SELECT dcurrentWeight FROM tblusers WHERE duserId = @userId"
+
+        Using cmd As New MySqlCommand(query, connection)
+            cmd.Parameters.AddWithValue("@userId", _userId)
+
+            Try
+                connection.Open()
+                Dim reader As MySqlDataReader = cmd.ExecuteReader()
+
+                If reader.Read() Then
+                    ' Display the current weight in the txtCurrentWeight TextBox
+                    txtCurrentWeight.Text = reader("dcurrentWeight").ToString()
+                Else
+                    MessageBox.Show("No user data found.")
+                End If
+            Catch ex As Exception
+                MessageBox.Show("Error loading current weight: " & ex.Message)
+            Finally
+                connection.Close()
+            End Try
+        End Using
+    End Sub
+
+
+    Private Sub SetCurrentDate()
+        ' Set the current date in the txtStartDate TextBox
+        txtStartDate.Text = DateTime.Now.ToLongDateString()
+    End Sub
+
+
+
+    Private Sub BtnSave_Click(sender As Object, e As EventArgs) Handles btnSave.Click
+        ' Update the user's weight in tblusers and insert into tblgoals
+        Dim newWeight As Double
+        Dim goalType As String = cmbGoalType.SelectedItem.ToString()
+        Dim targetWeight As Double
+        Dim targetDate As Date
+
+        If Double.TryParse(txtCurrentWeight.Text, newWeight) AndAlso
+       Double.TryParse(txtTargetWeight.Text, targetWeight) AndAlso
+       Date.TryParse(dtpTargetDate.Text, targetDate) Then
+            ' Update the current user's weight in tblusers
+            UpdateUserWeight(newWeight)
+
+            ' Perform the insert into tblgoals using the obtained userId
+            UpdateGoals(newWeight, goalType, targetWeight, targetDate)
+
+            ' Reload the current weight and set the current date to reflect the changes
+            LoadCurrentWeight()
+            SetCurrentDate()
+
+            ' Clear the input controls
+            cmbGoalType.SelectedIndex = -1
+            txtTargetWeight.Clear()
+
+            ' Optionally close the form after saving
+            ' Me.Close()
+        Else
+            MessageBox.Show("Please enter valid weight, target weight, and target date.")
+        End If
+    End Sub
+
+    Private Sub UpdateUserWeight(newWeight As Double)
+        ' Update the current user's weight in tblusers
+        Dim query As String = "UPDATE tblusers SET dcurrentWeight = @newWeight WHERE duserId = @userId"
+
+        Using cmd As New MySqlCommand(query, connection)
+            cmd.Parameters.AddWithValue("@newWeight", newWeight)
+            cmd.Parameters.AddWithValue("@userId", _userId)
+
+            Try
+                connection.Open()
+                cmd.ExecuteNonQuery()
+            Catch ex As Exception
+                MessageBox.Show("Error updating user weight: " & ex.Message)
+            Finally
+                connection.Close()
+            End Try
+        End Using
+    End Sub
+
+    Private Function GetLatestUserId() As Integer
+        ' Retrieve the latest user ID from tblusers
+        Dim query As String = "SELECT duserId FROM tblusers ORDER BY duserId DESC LIMIT 1"
+
+        Using cmd As New MySqlCommand(query, connection)
+            Try
+                connection.Open()
+                Dim userId As Object = cmd.ExecuteScalar()
+
+                If userId IsNot Nothing Then
+                    Return Convert.ToInt32(userId)
+                Else
+                    MessageBox.Show("No user data found.")
+                    Return -1
+                End If
+            Catch ex As Exception
+                MessageBox.Show("Error retrieving user ID: " & ex.Message)
+                Return -1
+            Finally
+                connection.Close()
+            End Try
+        End Using
+    End Function
+
+
+    Private Sub UpdateGoals(newWeight As Double, goalType As String, targetWeight As Double, targetDate As Date)
+        ' Use the stored user ID
+        Dim userId As Integer = _userId
+
+        ' Debug statement to display the user ID used when inserting goals
+        Debug.WriteLine("User ID used when updating goals: " & userId.ToString())
+
+        ' Insert a new record into tblgoals with the updated weight, userId, and other goal details
+        Dim query As String = "INSERT INTO tblgoals (duserId, dgoalType, dcurrentWeight, dtargetWeight, dgoalStart, dgoalEnd, dstatus) " &
+                          "VALUES (@userId, @goalType, @newWeight, @targetWeight, @startDate, @targetDate, @status)"
+
+        Using cmd As New MySqlCommand(query, connection)
+            cmd.Parameters.AddWithValue("@userId", userId)
+            cmd.Parameters.AddWithValue("@goalType", goalType)
+            cmd.Parameters.AddWithValue("@newWeight", newWeight)
+            cmd.Parameters.AddWithValue("@targetWeight", targetWeight)
+            cmd.Parameters.AddWithValue("@startDate", DateTime.Now.ToShortDateString())
+            cmd.Parameters.AddWithValue("@targetDate", targetDate.ToShortDateString())
+            cmd.Parameters.AddWithValue("@status", "In Progress") ' Set the status to "In Progress"
+
+            Try
+                connection.Open()
+                cmd.ExecuteNonQuery()
+            Catch ex As Exception
+                MessageBox.Show("Error updating goals: " & ex.Message)
+            Finally
+                connection.Close()
+            End Try
+        End Using
+    End Sub
+
+    Private Sub btnExit_Click(sender As Object, e As EventArgs) Handles btnExit.Click
+        ' Close the form when the exit button is pressed
+        Me.Close()
+    End Sub
+
+    Private Sub HomeToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles HomeToolStripMenuItem.Click
+        Close()
+    End Sub
+
+    Private Sub ProfileToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ProfileToolStripMenuItem.Click
+
+        Close()
+    End Sub
+
+    Private Sub LogoutToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles LogoutToolStripMenuItem.Click
+        frmLogin.Show()
+        Me.Close()
+    End Sub
+
+    Private Sub ActivitiesToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ActivitiesToolStripMenuItem.Click
+
+        Close()
+    End Sub
+
+    Private Sub DietToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles DietToolStripMenuItem.Click
+        Dim dietForm As New frmDiet(_userId)
+        dietForm.Show()
+        Close()
+    End Sub
+
+
+    Private Sub AchievementsToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles AchievementsToolStripMenuItem.Click
+        frmAchievements.Show()
+        Close()
+    End Sub
+End Class

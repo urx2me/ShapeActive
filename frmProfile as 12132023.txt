@@ -1,0 +1,193 @@
+Imports Microsoft.VisualBasic.ApplicationServices
+Imports MySql.Data.MySqlClient
+Public Class frmProfile
+    ' ... existing code
+
+    Private _username As String
+    ' Assume these are your textboxes for user input
+    Private _userId As Integer ' Add a field to store the user ID
+    Public Function GetUserId() As Integer
+        ' Return the stored user ID
+        Return _userId
+    End Function
+    ' Modify the constructor to accept the user ID
+    Public Sub New(userId As Integer)
+        InitializeComponent()
+        _userId = userId
+    End Sub
+
+    ' Other necessary form controls and variables
+
+    Public Sub New(email As String, password As String, username As String, age As Integer, height As Double, weight As Double, bmi As Double)
+        ' Initialize components and set textbox values
+        InitializeComponent()
+        txtEmail.Text = email
+        txtPassword.Text = password
+        txtUsername.Text = username
+        txtAge.Text = age.ToString()
+        txtHeight.Text = height.ToString()
+        txtWeight.Text = weight.ToString()
+        txtBMI.Text = bmi.ToString()
+    End Sub
+
+    ' Event handler for btnSave
+    Private Sub btnSave_Click(sender As Object, e As EventArgs)
+        ' Update the user information in tblusers
+        UpdateUserProfile(_userId, txtEmail.Text, txtPassword.Text, txtUsername.Text, Convert.ToInt32(txtAge.Text), Convert.ToDouble(txtHeight.Text), Convert.ToDouble(txtWeight.Text), Convert.ToDouble(txtBMI.Text))
+
+        ' Close the profile edit form or perform any other necessary actions
+        Me.Close()
+    End Sub
+
+
+    ' Function to update user profile in tblusers
+    ' Function to update user profile in tblusers
+    Private Sub UpdateUserProfile(userId As Integer, email As String, password As String, username As String, age As Integer, height As Double, weight As Double, bmi As Double)
+        Dim connectionString As String = "server=localhost;user id=root;password=nics1108;database=shapeactive"
+        Dim query As String = "UPDATE tblusers SET demail = @email, dpassword = @password, dname = @username, dage = @age, dheight = @height, dcurrentWeight = @weight, dbmi = @bmi WHERE duserId = @userId"
+
+        Using connection As New MySqlConnection(connectionString)
+            Using cmd As New MySqlCommand(query, connection)
+                cmd.Parameters.AddWithValue("@userId", userId)
+                cmd.Parameters.AddWithValue("@email", email)
+                cmd.Parameters.AddWithValue("@password", password)
+                cmd.Parameters.AddWithValue("@username", username)
+                cmd.Parameters.AddWithValue("@age", age)
+                cmd.Parameters.AddWithValue("@height", height)
+                cmd.Parameters.AddWithValue("@weight", weight)
+                cmd.Parameters.AddWithValue("@bmi", bmi)
+
+                Try
+                    connection.Open()
+                    Dim rowsAffected As Integer = cmd.ExecuteNonQuery()
+
+                    If rowsAffected > 0 Then
+                        MessageBox.Show("User profile updated successfully.")
+                    Else
+                        MessageBox.Show("No rows were affected. User profile not updated.")
+                    End If
+                Catch ex As Exception
+                    MessageBox.Show("Error updating user profile: " & ex.Message)
+                End Try
+            End Using
+        End Using
+    End Sub
+    Public Sub New(username As String)
+        InitializeComponent()
+        _username = username
+    End Sub
+    ' Function to load user profile values into GunaTextBoxes
+    Private Sub LoadUserProfile()
+        Dim connectionString As String = "server=localhost;user id=root;password=nics1108;database=shapeactive"
+        Dim query As String = "SELECT dname, demail, dpassword, dage, dheight, dcurrentWeight, dbmi FROM tblusers WHERE duserId = @userId"
+
+        Using connection As New MySqlConnection(connectionString)
+            Using cmd As New MySqlCommand(query, connection)
+                cmd.Parameters.AddWithValue("@userId", _userId)
+
+                Try
+                    connection.Open()
+
+                    Dim reader As MySqlDataReader = cmd.ExecuteReader()
+
+                    If reader.Read() Then
+                        ' Display the current user profile values in the GunaTextBoxes
+                        _username = If(Not IsDBNull(reader("dname")), reader("dname").ToString(), "")
+                        lblName.Text = _username
+
+                        txtPassword.Text = If(Not IsDBNull(reader("demail")), reader("demail").ToString(), "")
+                        txtUsername.Text = If(Not IsDBNull(reader("dpassword")), reader("dpassword").ToString(), "")
+                        txtUsername.Text = _username ' Display username in the textbox
+                        txtAge.Text = If(Not IsDBNull(reader("dage")), reader("dage").ToString(), "")
+                        txtHeight.Text = If(Not IsDBNull(reader("dheight")), reader("dheight").ToString(), "")
+                        txtWeight.Text = If(Not IsDBNull(reader("dcurrentWeight")), reader("dcurrentWeight").ToString(), "")
+                        txtBMI.Text = If(Not IsDBNull(reader("dbmi")), reader("dbmi").ToString(), "")
+
+                        ' Calculate and display BMI
+                        CalculateAndDisplayBMI(reader("dAge"), reader("dHeight"), reader("dcurrentWeight"))
+                    End If
+                Catch ex As Exception
+                    MessageBox.Show("Error loading user profile: " & ex.Message)
+                End Try
+            End Using
+        End Using
+    End Sub
+
+
+    Private Sub frmProfile_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        ' Use _username to display the username in lblName
+        lblName.Text = _username
+        LoadUserProfile()
+        Debug.WriteLine("UserID: " & _userId)
+    End Sub
+
+    Private Sub HomeToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles HomeToolStripMenuItem.Click
+        Close()
+    End Sub
+
+    ' ... existing code
+
+    ' Display BMI on the form
+    ' Calculate BMI based on age, height, and weight
+    Private Function CalculateBMI(ByVal age As Double, ByVal height As Double, ByVal weight As Double) As Double
+        ' BMI formula: BMI = weight (kg) / (height (m))^2
+        ' Convert height from ft to m
+        Dim heightInMeters As Double = height * 0.3048
+        ' Calculate BMI
+        Return weight / (heightInMeters * heightInMeters)
+    End Function
+
+    ' Display BMI on the form
+    Private Sub CalculateAndDisplayBMI(ByVal age As Object, ByVal height As Object, ByVal weight As Object)
+        If age IsNot DBNull.Value AndAlso height IsNot DBNull.Value AndAlso weight IsNot DBNull.Value Then
+            Dim bmi As Double = CalculateBMI(Convert.ToDouble(age), Convert.ToDouble(height), Convert.ToDouble(weight))
+            txtBMI.Text = $"{bmi:F2}"
+
+            ' Customize the BMI result based on age
+            Dim bmiResult As String = GetBMIResult(bmi, Convert.ToInt32(age))
+            lblBMIResult.Text = $"Your BMI Result: {bmiResult}"
+        Else
+            txtBMI.Text = "BMI: N/A"
+            lblBMIResult.Text = "Your BMI Result: N/A"
+        End If
+    End Sub
+
+    Private Function GetBMIResult(ByVal bmi As Double, ByVal age As Integer) As String
+        ' Implement your logic to categorize BMI based on age
+        ' Example logic: You need to define your own BMI ranges and categories for different age groups
+
+        If age <= 5 Then
+            If bmi <= 14.0 Then
+                Return "Underweight"
+            ElseIf bmi <= 18.0 Then
+                Return "Normal weight"
+            ElseIf bmi <= 20.0 Then
+                Return "Overweight"
+            Else
+                Return "Obese"
+            End If
+        ElseIf age >= 6 AndAlso age <= 17 Then
+            If bmi <= 18.5 Then
+                Return "Underweight"
+            ElseIf bmi <= 24.9 Then
+                Return "Normal weight"
+            ElseIf bmi <= 29.9 Then
+                Return "Overweight"
+            Else
+                Return "Obese"
+            End If
+        Else
+            ' Adjustments for adults (18 and older)
+            If bmi <= 18.5 Then
+                Return "Underweight"
+            ElseIf bmi <= 24.9 Then
+                Return "Normal weight"
+            ElseIf bmi <= 29.9 Then
+                Return "Overweight"
+            Else
+                Return "Obese"
+            End If
+        End If
+    End Function
+
+End Class

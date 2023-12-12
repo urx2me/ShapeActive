@@ -1,0 +1,162 @@
+Imports System.Text.RegularExpressions
+Imports MySql.Data.MySqlClient
+
+Public Class frmSignup
+    Sub insertLogs()
+        Dim myConnectionx As MySqlConnection
+        Dim myCommandx As MySqlCommand
+
+        ' Make sure to replace these with your actual database connection information
+        Dim connectionString As String = "Server=localhost;Database=shapeactive;Uid=root;Pwd=nics1108;"
+
+        myConnectionx = New MySqlConnection(connectionString)
+
+        Try
+            myConnectionx.Open()
+
+            ' Use parameters to prevent SQL injection
+            Dim query As String = "INSERT INTO tblUsers (dname, demail, dpassword, dage, dheight, dcurrentWeight, ttimestamp, dbmi) VALUES (@dname, @demail, @dpassword, @dage, @dheight, @dcurrentWeight, @ttimestamp, @dbmi)"
+            myCommandx = New MySqlCommand(query, myConnectionx)
+
+            ' Replace Environ with actual input source (e.g., TextBox.Text)
+            myCommandx.Parameters.AddWithValue("@dname", txtUsername.Text)
+            myCommandx.Parameters.AddWithValue("@demail", txtEmail.Text)
+            myCommandx.Parameters.AddWithValue("@dpassword", txtPassword.Text)
+            myCommandx.Parameters.AddWithValue("@dheight", txtHeight.Text)
+            myCommandx.Parameters.AddWithValue("@dage", txtAge.Text)
+            myCommandx.Parameters.AddWithValue("@dcurrentWeight", txtCurrentWeight.Text)
+            myCommandx.Parameters.AddWithValue("@ttimestamp", DateTime.Now)
+
+            ' Calculate BMI
+            Dim height As Double
+            Dim weight As Double
+
+            If Double.TryParse(txtHeight.Text, height) AndAlso Double.TryParse(txtCurrentWeight.Text, weight) Then
+                Dim heightInMeters As Double = height * 0.3048
+                Dim bmi As Double = weight / (heightInMeters * heightInMeters)
+                myCommandx.Parameters.AddWithValue("@dbmi", bmi.ToString("F2"))
+            Else
+                myCommandx.Parameters.AddWithValue("@dbmi", DBNull.Value) ' Handle invalid input
+            End If
+
+            myCommandx.ExecuteNonQuery()
+
+            MsgBox("Item has been saved. Refreshing page.", vbOK, "Success")
+        Catch ex As Exception
+            MsgBox(ex.Message)
+        Finally
+            myConnectionx.Close()
+        End Try
+    End Sub
+
+
+    Private Sub btnCreate_Click(sender As Object, e As EventArgs) Handles btnCreate.Click
+        insertLogs()
+
+        ' Retrieve the height and weight values from the input fields
+        Dim height As Double
+        Dim weight As Double
+
+        If Double.TryParse(txtHeight.Text, height) AndAlso Double.TryParse(txtCurrentWeight.Text, weight) Then
+            ' Show a message indicating successful account creation
+            MessageBox.Show("Account created successfully. Please log in with your new credentials.")
+
+            ' Navigate back to the login form
+            Dim loginForm As New frmLogin()
+            loginForm.Show()
+
+            Me.Hide()
+        Else
+            MessageBox.Show("Invalid height or weight input.")
+        End If
+    End Sub
+
+
+
+    Private Sub txtAge_KeyPress(sender As Object, e As KeyPressEventArgs) Handles txtAge.KeyPress
+        txtAge.MaxLength = 3
+        ' Allow only numeric input and backspace
+        If Not Char.IsDigit(e.KeyChar) AndAlso e.KeyChar <> ControlChars.Back Then
+            e.Handled = True ' Suppress the key press
+        End If
+    End Sub
+
+    Private Sub txtCurrentWeight_KeyPress(sender As Object, e As KeyPressEventArgs) Handles txtCurrentWeight.KeyPress
+        txtCurrentWeight.MaxLength = 3
+        ' Allow only digits, backspace, and the decimal point
+        If Not Char.IsDigit(e.KeyChar) AndAlso e.KeyChar <> ControlChars.Back AndAlso e.KeyChar <> "." Then
+            e.Handled = True
+        End If
+
+        ' Limit the total length to 5 characters
+        If txtCurrentWeight.Text.Contains(".") AndAlso txtCurrentWeight.Text.Substring(txtCurrentWeight.Text.IndexOf(".") + 1).Length >= 2 AndAlso e.KeyChar <> ControlChars.Back Then
+            e.Handled = True
+        End If
+    End Sub
+
+    Private Sub txtPassword_TextChanged_1(sender As Object, e As EventArgs) Handles txtPassword.TextChanged
+        txtPassword.MaxLength = 20
+        txtPassword.UseSystemPasswordChar = True
+
+        ' Check if there is text in the TextBox
+        If Not String.IsNullOrWhiteSpace(txtPassword.Text) Then
+            btnShow.Visible = True  ' Make the button visible
+        Else
+            btnShow.Visible = False ' Hide the button
+        End If
+    End Sub
+
+    Private Sub txtEmail_TextChanged(sender As Object, e As EventArgs)
+        txtUsername.MaxLength = 30
+    End Sub
+
+    Private Sub txtUsername_TextChanged(sender As Object, e As EventArgs) Handles txtUsername.TextChanged
+        txtUsername.MaxLength = 30
+    End Sub
+
+    Private Sub txtHeight_KeyPress(sender As Object, e As KeyPressEventArgs) Handles txtHeight.KeyPress
+        txtHeight.MaxLength = 3
+        ' Allow only digits, backspace, and the apostrophe
+        If Not Char.IsDigit(e.KeyChar) AndAlso e.KeyChar <> ControlChars.Back AndAlso e.KeyChar <> "." Then
+            e.Handled = True
+        End If
+
+        ' Limit the total length to 5 characters
+        If txtHeight.Text.Contains(".") AndAlso txtHeight.Text.Substring(txtHeight.Text.IndexOf(".") + 1).Length >= 2 AndAlso e.KeyChar <> ControlChars.Back Then
+            e.Handled = True
+        End If
+    End Sub
+
+    Private Sub frmSignup_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+
+    End Sub
+
+    Private Sub btnCancel_Click(sender As Object, e As EventArgs) Handles btnCancel.Click
+        Me.Hide()
+        frmLogin.Show()
+
+        ' Clear the text in TextBox controls
+        txtEmail.Text = ""
+        txtUsername.Text = ""
+        txtPassword.Text = ""
+        txtAge.Text = ""
+        txtHeight.Text = ""
+        txtCurrentWeight.Text = ""
+    End Sub
+
+    Dim isTextVisible As Boolean = False
+    Private Sub btnShow_Click(sender As Object, e As EventArgs) Handles btnShow.Click
+
+        ' Toggle the visibility of the text in the TextBox
+        isTextVisible = Not isTextVisible
+        If isTextVisible Then
+            txtPassword.UseSystemPasswordChar = False ' Display the text
+            btnShow.Text = "Hide"  ' Change button text to "Hide"
+        Else
+            txtPassword.UseSystemPasswordChar = True  ' Hide the text
+            btnShow.Text = "Show"  ' Change button text to "Show"
+        End If
+    End Sub
+
+
+End Class

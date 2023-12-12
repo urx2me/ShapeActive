@@ -1,0 +1,227 @@
+Imports MySql.Data.MySqlClient
+Imports System.Data
+
+Public Class frmActivities
+    Dim connectionString As String = "server=localhost;user id=root;password=Charles-061803;database=shapeactive"
+    Dim connection As New MySqlConnection(connectionString)
+    Private dt As New DataTable()
+    Private _userId As Integer ' Add a field to store the user ID
+
+    ' Modify the constructor to accept the user ID
+    Public Sub New(userId As Integer)
+        InitializeComponent()
+        _userId = userId
+    End Sub
+    Private Sub HomeToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles HomeToolStripMenuItem.Click
+        Close()
+    End Sub
+
+    Private Sub ProfileToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ProfileToolStripMenuItem.Click
+
+        Close()
+    End Sub
+
+    Private Sub LogoutToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles LogoutToolStripMenuItem.Click
+        frmLogin.Show()
+        Close()
+    End Sub
+
+    Private Sub DietToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles DietToolStripMenuItem.Click
+        frmDiet.Show()
+        Close()
+    End Sub
+
+    Private Sub AchievementToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles AchievementToolStripMenuItem.Click
+        frmAchievements.Show()
+        Close()
+    End Sub
+
+    Private Sub GoalsToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles GoalsToolStripMenuItem.Click
+
+        Close()
+    End Sub
+
+    Private Sub frmActivities_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+
+        LoadActivities()
+    End Sub
+    Private Sub LoadActivities()
+        Dim query As String = "SELECT dactivity FROM tblactivities WHERE duserid IS NULL"
+        Dim adapter As New MySqlDataAdapter(query, connection)
+
+        Try
+            connection.Open()
+            adapter.Fill(dt)
+
+            ' Check if the DataTable has rows before assigning it as the DataGridView's data source
+            If dt.Rows.Count > 0 Then
+                dgvActivity.DataSource = dt
+            Else
+                MessageBox.Show("No activities found.")
+            End If
+        Catch ex As Exception
+            MessageBox.Show("Error loading activities: " & ex.Message)
+        Finally
+            connection.Close()
+        End Try
+    End Sub
+
+    Private Sub txtSearch_TextChanged(sender As Object, e As EventArgs) Handles txtSearch.TextChanged
+        LiveSearch(txtSearch.Text)
+    End Sub
+    Private Sub LiveSearch(keyword As String)
+        ' Ensure the DataTable has been populated
+        If dt.Rows.Count > 0 Then
+            Try
+                dt.DefaultView.RowFilter = $"dactivity LIKE '%{keyword}%'"
+            Catch ex As EvaluateException
+                ' Handle the exception if the column is not found
+                MessageBox.Show($"Error during live search: {ex.Message}")
+            End Try
+        End If
+    End Sub
+
+    Private Sub dgvActivity_CellContentClick(sender As Object, e As DataGridViewCellEventArgs) Handles dgvActivity.CellContentClick
+        ' Check if the clicked cell is not a header cell
+        If e.RowIndex >= 0 Then
+            ' Get the clicked activity from the selected row
+            Dim selectedRow As DataGridViewRow = dgvActivity.Rows(e.RowIndex)
+            Dim clickedActivity As String = selectedRow.Cells("dactivity").Value.ToString()
+
+            ' Display the clicked activity in txtActivity
+            txtActivity.Text = clickedActivity
+
+            ' Calculate calories burned based on duration and display the result in txtCaloriesBurned
+            CalculateCaloriesBurned()
+        End If
+    End Sub
+
+    Private Sub txtDuration_TextChanged(sender As Object, e As EventArgs) Handles txtDuration.TextChanged
+        ' Calculate calories burned based on duration and display the result in txtCaloriesBurned
+        CalculateCaloriesBurned()
+    End Sub
+
+    Private Sub CalculateCaloriesBurned()
+        ' Ensure the necessary inputs are available
+        If Not String.IsNullOrEmpty(txtActivity.Text) AndAlso Double.TryParse(txtDuration.Text, Nothing) Then
+            Dim duration As Double = Convert.ToDouble(txtDuration.Text)
+
+            ' Retrieve the calories per hour for the selected activity from the database
+            Dim caloriesPerHour As Double = GetCaloriesPerHour(txtActivity.Text)
+
+            ' Convert calories per hour to calories per minute
+            Dim caloriesPerMinute As Double = caloriesPerHour / 60
+
+            ' Retrieve the user's weight from tblusers
+            Dim userWeight As Double = GetUserWeight()
+
+            ' Perform the calculation
+            Dim caloriesBurned As Double = duration * caloriesPerMinute * userWeight
+
+            ' Display the result in txtCaloriesBurned
+            txtCaloriesBurned.Text = caloriesBurned.ToString()
+        End If
+    End Sub
+
+    Private Function GetCaloriesPerHour(activity As String) As Double
+        Dim query As String = "SELECT dcaloriesperkg FROM tblactivities WHERE dactivity = @activity AND duserid IS NULL"
+        Dim caloriesPerHour As Double = 0
+
+        Using cmd As New MySqlCommand(query, connection)
+            cmd.Parameters.AddWithValue("@activity", activity)
+
+            Try
+                connection.Open()
+                Dim result As Object = cmd.ExecuteScalar()
+
+                If result IsNot Nothing AndAlso Double.TryParse(result.ToString(), caloriesPerHour) Then
+                    ' Successfully retrieved calories per hour
+                    Return caloriesPerHour
+                End If
+            Catch ex As Exception
+                ' Handle the exception
+                MessageBox.Show("Error retrieving calories per hour: " & ex.Message)
+            Finally
+                connection.Close()
+            End Try
+        End Using
+
+        Return caloriesPerHour
+    End Function
+
+    Private Function GetUserWeight() As Double
+        Dim query As String = "SELECT dcurrentWeight FROM tblusers WHERE duserId = @userId"
+        Dim userWeight As Double = 0
+
+        Using cmd As New MySqlCommand(query, connection)
+            cmd.Parameters.AddWithValue("@userId", _userId)
+
+            Try
+                connection.Open()
+                Dim result As Object = cmd.ExecuteScalar()
+
+                If result IsNot Nothing AndAlso Double.TryParse(result.ToString(), userWeight) Then
+                    ' Successfully retrieved user weight
+                    Return userWeight
+                End If
+            Catch ex As Exception
+                ' Handle the exception
+                MessageBox.Show("Error retrieving user weight: " & ex.Message)
+            Finally
+                connection.Close()
+            End Try
+        End Using
+
+        Return userWeight
+    End Function
+
+    Private Sub btnAdd_Click(sender As Object, e As EventArgs) Handles btnAdd.Click
+        ' Check if necessary fields are not empty
+        If Not String.IsNullOrEmpty(txtActivity.Text) AndAlso
+       Double.TryParse(txtDuration.Text, Nothing) AndAlso
+       Not String.IsNullOrEmpty(txtCaloriesBurned.Text) Then
+
+            ' Get the values from the textboxes
+            Dim activity As String = txtActivity.Text
+            Dim duration As Double = Convert.ToDouble(txtDuration.Text)
+            Dim caloriesBurned As Double = Convert.ToDouble(txtCaloriesBurned.Text)
+
+            ' Insert the data into tblactivities
+            InsertActivity(activity, duration, caloriesBurned)
+
+            ' Clear the input fields
+            txtActivity.Clear()
+            txtDuration.Clear()
+            txtCaloriesBurned.Clear()
+
+            ' Refresh the activities in the DataGridView
+            LoadActivities()
+        Else
+            MessageBox.Show("Please enter valid values for activity, duration, and calories burned.")
+        End If
+    End Sub
+
+
+    Private Sub InsertActivity(activity As String, duration As Double, caloriesBurned As Double)
+        Dim query As String = "INSERT INTO tblactivities (duserid, dactivity, dcaloriesperkg, dduration, dcaloriesburned) " &
+                          "VALUES (@userId, @activity, @caloriesPerKg, @duration, @caloriesBurned)"
+
+        Using cmd As New MySqlCommand(query, connection)
+            cmd.Parameters.AddWithValue("@userId", _userId)
+            cmd.Parameters.AddWithValue("@activity", activity)
+            cmd.Parameters.AddWithValue("@caloriesPerKg", GetCaloriesPerHour(activity))
+            cmd.Parameters.AddWithValue("@duration", duration)
+            cmd.Parameters.AddWithValue("@caloriesBurned", caloriesBurned)
+
+            Try
+                connection.Open()
+                cmd.ExecuteNonQuery()
+            Catch ex As Exception
+                MessageBox.Show("Error inserting activity: " & ex.Message)
+            Finally
+                connection.Close()
+            End Try
+        End Using
+    End Sub
+
+End Class

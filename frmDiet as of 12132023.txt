@@ -1,0 +1,311 @@
+Imports Microsoft.VisualBasic.ApplicationServices
+Imports MySql.Data.MySqlClient
+
+Public Class frmDiet
+    Dim connectionString As String = "server=localhost;uid=root;password=nics1108;database=shapeactive"
+    Dim connection As New MySqlConnection(connectionString)
+    Private originalDt As DataTable
+
+    Private userId As Integer
+
+    Private selectedFoodCalories As Double = 0
+
+    Public Sub New(userId As Integer)
+        InitializeComponent()
+        Me.userId = userId
+    End Sub
+
+    ' Use a property to store and retrieve the user ID
+
+
+    ' Retrieve and display BMI category when the form loads
+    Private Sub frmDiet_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        InitializeSelectedFoodDataGridView()
+
+        ' Fetch BMI data from MySQL using the stored userId
+        Dim query As String = "SELECT dbmi, dage FROM tblUsers WHERE duserid = @userId"
+
+        Using connection As New MySqlConnection(connectionString)
+            Using command As New MySqlCommand(query, connection)
+                command.Parameters.AddWithValue("@userId", userId)
+
+                Try
+                    connection.Open()
+                    Using reader As MySqlDataReader = command.ExecuteReader()
+                        If reader.Read() Then
+                            Dim bmi As Object = reader("dbmi")
+                            Dim age As Object = reader("dage")
+
+                            If bmi IsNot DBNull.Value AndAlso Double.TryParse(bmi.ToString(), Nothing) Then
+                                ' Display BMI category
+                                DisplayBMICategory(Convert.ToInt32(age), Convert.ToDouble(bmi))
+                            Else
+                                MessageBox.Show("BMI data not found. Please check your profile and click refresh.")
+                            End If
+                        Else
+                            MessageBox.Show("User not found.")
+                        End If
+                    End Using
+                Catch ex As Exception
+                    MessageBox.Show("Error fetching BMI data: " & ex.Message)
+                End Try
+            End Using
+        End Using
+    End Sub
+
+
+    Private Sub DisplayBMICategory(ByVal age As Object, ByVal bmi As Double)
+        ' Implement your logic to categorize BMI
+        Dim bmiCategory As String = GetBMICategory(bmi, Convert.ToInt32(age))
+
+        ' Display the BMI category in the label
+        lblBmi.Text = "Your BMI Score: " & $"{bmi:F2}"
+        lblBmiCategory.Text = "Your BMI Category: " & bmiCategory
+
+        ' Set the text for lblFoodReco based on BMI category
+        lblFoodReco.Text = GetFoodRecommendationText(bmiCategory)
+
+        ' Update the ProgressBar based on BMI category
+        UpdateProgressBar(bmiCategory)
+
+        ' Load food recommendations into DataGridView based on BMI category
+        LoadFoodRecommendations(bmiCategory)
+    End Sub
+
+    Private Sub UpdateProgressBar(ByVal bmiCategory As String)
+        ' Set ProgressBar value based on BMI category
+        Select Case bmiCategory
+            Case "Underweight"
+                progressBarBMI.Value = 25
+            Case "Normal weight"
+                progressBarBMI.Value = 50
+            Case "Overweight"
+                progressBarBMI.Value = 75
+            Case "Obese"
+                progressBarBMI.Value = 100
+            Case Else
+                progressBarBMI.Value = 0 ' Handle unknown category
+        End Select
+    End Sub
+
+    ' Placeholder for the BMI category logic
+    Private Function GetBMICategory(ByVal bmi As Double, ByVal age As Integer) As String
+        ' Implement your logic to categorize BMI
+        ' Example logic: You need to define your own BMI ranges and categories
+        If age <= 5 Then
+            If bmi <= 14.0 Then
+                Return "Underweight"
+            ElseIf bmi <= 18.0 Then
+                Return "Normal weight"
+            ElseIf bmi <= 20.0 Then
+                Return "Overweight"
+            Else
+                Return "Obese"
+            End If
+        ElseIf age >= 6 AndAlso age <= 17 Then
+            If bmi <= 18.5 Then
+                Return "Underweight"
+            ElseIf bmi <= 24.9 Then
+                Return "Normal weight"
+            ElseIf bmi <= 29.9 Then
+                Return "Overweight"
+            Else
+                Return "Obese"
+            End If
+        Else
+            ' Adjustments for adults (18 and older)
+            If bmi <= 18.5 Then
+                Return "Underweight"
+            ElseIf bmi <= 24.9 Then
+                Return "Normal weight"
+            ElseIf bmi <= 29.9 Then
+                Return "Overweight"
+            Else
+                Return "Obese"
+            End If
+        End If
+    End Function
+
+    Private Sub HomeToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles HomeToolStripMenuItem.Click
+        Close()
+    End Sub
+
+    Private Sub lblFoodReco_Click(sender As Object, e As EventArgs) Handles lblFoodReco.Click
+        ' Fetch BMI data and age from MySQL using the stored userId
+        Dim query As String = "SELECT dbmi, dage FROM tblUsers WHERE duserid = @duserid"
+
+        Using connection As New MySqlConnection(connectionString)
+            Using command As New MySqlCommand(query, connection)
+                command.Parameters.AddWithValue("@userId", userId)
+
+                Try
+                    connection.Open()
+                    Dim reader As MySqlDataReader = command.ExecuteReader()
+
+                    If reader.Read() Then
+                        Dim bmi As Object = reader("dbmi")
+                        Dim age As Object = reader("dage")
+
+                        If bmi IsNot DBNull.Value AndAlso Double.TryParse(bmi.ToString(), Nothing) Then
+                            ' Determine BMI category
+                            Dim bmiCategory As String = GetBMICategory(Convert.ToDouble(bmi), Convert.ToInt32(age))
+
+                            ' Display food recommendations based on BMI category
+                            GetFoodRecommendationText(bmiCategory)
+                        Else
+                            MessageBox.Show("BMI data not found.")
+                        End If
+                    Else
+                        MessageBox.Show("User not found.")
+                    End If
+                Catch ex As Exception
+                    MessageBox.Show("Error fetching BMI data: " & ex.Message)
+                End Try
+            End Using
+        End Using
+    End Sub
+
+
+    Private Function GetFoodRecommendationText(bmiCategory As String) As String
+        ' Return the food recommendation text based on BMI category
+        Select Case bmiCategory
+            Case "Underweight"
+                Return "Here are the foods we recommend for you to gain weight."
+            Case "Normal Weight"
+                Return "Here are the foods we recommend for you to maintain a healthy weight."
+            Case "Overweight"
+                Return "Here are the foods we recommend for you to manage your weight."
+            Case "Obese"
+                Return "Here are the foods we recommend for you to support a healthy lifestyle."
+            Case Else
+                Return "Food recommendations not available for the current BMI category."
+        End Select
+    End Function
+
+    Private Sub LoadFoodRecommendations(weightCategory As String)
+        ' Fetch food recommendations from tbldiettrack based on the weight category
+        Dim query As String = "SELECT dfood as 'Food', dfoodType as 'Food Type', dcalories as 'Calories' FROM tbldiettrack WHERE dweightCategory = @dweightCategory"
+
+        Using connection As New MySqlConnection(connectionString)
+            Using command As New MySqlCommand(query, connection)
+                command.Parameters.AddWithValue("@dweightCategory", weightCategory)
+
+                Try
+                    connection.Open()
+                    Dim adapter As New MySqlDataAdapter(command)
+                    originalDt = New DataTable() ' Assign the originalDt at the class level
+                    adapter.Fill(originalDt)
+
+                    ' Bind the DataTable to the DataGridView
+                    dgFoodReco.DataSource = originalDt
+                Catch ex As Exception
+                    MessageBox.Show("Error fetching food recommendations: " & ex.Message)
+                End Try
+            End Using
+        End Using
+    End Sub
+
+    ' ... Other code ...
+
+    Private Sub SearchFoodRecommendations(searchTerm As String)
+        ' Check if the DataGridView is not null
+        If dgFoodReco IsNot Nothing Then
+            ' Apply a filter to the original DataTable based on the search term
+            If originalDt IsNot Nothing Then
+                If String.IsNullOrWhiteSpace(searchTerm) Then
+                    ' Show all rows if the search term is empty
+                    dgFoodReco.DataSource = originalDt
+                Else
+                    ' Create a new DataTable for filtered data
+                    Dim filteredDt As DataTable = originalDt.Clone()
+                    Dim rows() As DataRow = originalDt.Select($"[Food] LIKE '%{searchTerm}%' OR [Food Type] LIKE '%{searchTerm}%'")
+                    For Each row As DataRow In rows
+                        filteredDt.ImportRow(row)
+                    Next
+
+                    ' Set the filtered DataTable as the DataSource
+                    dgFoodReco.DataSource = filteredDt
+                End If
+
+                ' If any matches are found, highlight the first one and scroll to it
+                If dgFoodReco.Rows.Count > 0 Then
+                    dgFoodReco.ClearSelection()
+                    dgFoodReco.Rows(0).Selected = True
+                    dgFoodReco.FirstDisplayedScrollingRowIndex = 0
+                Else
+                    ' If no match is found, display a message
+                    MessageBox.Show("No matching rows found.")
+                End If
+            End If
+        End If
+    End Sub
+
+
+    Private Sub btnSearch_Click(sender As Object, e As EventArgs) Handles btnSearch.Click
+        SearchFoodRecommendations(txtSearch.Text)
+    End Sub
+
+    Private Sub InitializeSelectedFoodDataGridView()
+        ' Set up the DataGridView for selected food
+        dgSelectedFood.AutoGenerateColumns = True
+        dgSelectedFood.DataSource = Nothing
+        dgSelectedFood.Columns.Clear()
+        dgSelectedFood.Rows.Clear()
+
+        ' You may need to adjust the columns based on your data structure
+        Dim foodColumn As New DataGridViewTextBoxColumn()
+        foodColumn.HeaderText = "Food"
+        foodColumn.DataPropertyName = "Food"
+
+        Dim foodTypeColumn As New DataGridViewTextBoxColumn()
+        foodTypeColumn.HeaderText = "Food Type"
+        foodTypeColumn.DataPropertyName = "Food Type"
+
+        ' Add the columns to the DataGridView
+        dgSelectedFood.Columns.Add(foodColumn)
+        dgSelectedFood.Columns.Add(foodTypeColumn)
+    End Sub
+
+    Private Sub UpdateSelectedFoodDataGridView(foodName As String, foodType As String)
+        ' Create a new DataTable for selected food
+        Dim selectedFoodDt As New DataTable()
+        selectedFoodDt.Columns.Add("Food")
+        selectedFoodDt.Columns.Add("Food Type")
+
+        ' Add the selected food to the DataTable
+        selectedFoodDt.Rows.Add(foodName, foodType)
+
+        ' Bind the DataTable to the DataGridView
+        dgSelectedFood.DataSource = selectedFoodDt
+    End Sub
+
+    Private Sub dgFoodReco_CellClick(sender As Object, e As DataGridViewCellEventArgs) Handles dgFoodReco.CellClick
+        ' Check if a valid row is clicked (not header or empty row)
+        If e.RowIndex >= 0 AndAlso e.RowIndex < dgFoodReco.Rows.Count Then
+            ' Get the selected row
+            Dim selectedRow As DataGridViewRow = dgFoodReco.Rows(e.RowIndex)
+
+            ' Get the values from the selected row
+            Dim foodName As String = Convert.ToString(selectedRow.Cells("Food").Value)
+            Dim foodType As String = Convert.ToString(selectedRow.Cells("Food Type").Value)
+            Dim calories As Object = selectedRow.Cells("Calories").Value
+
+            ' Check if the calories value is not DBNull.Value and can be parsed to a double
+            If calories IsNot DBNull.Value AndAlso Double.TryParse(calories.ToString(), Nothing) Then
+                ' Add the calories to the total
+                selectedFoodCalories += Convert.ToDouble(calories)
+
+                ' Update the label with the selected food and accumulated calories
+                lblSelectedFood.Text = $"Selected Food: {foodName}, Accumulated Calories: {selectedFoodCalories}"
+
+                ' Update the DataGridView for selected food
+                UpdateSelectedFoodDataGridView(foodName, foodType)
+            Else
+                MessageBox.Show("Calories information not available for the selected food.")
+            End If
+        End If
+    End Sub
+
+
+
+End Class
